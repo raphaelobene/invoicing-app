@@ -3,9 +3,35 @@
   "semi": false,
   "singleQuote": false,
   "tabWidth": 2,
+  "useTabs": true,
   "trailingComma": "es5",
   "printWidth": 80,
-  "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindStylesheet": "app/globals.css",
+  "parser": "typescript",
+  "jsxSingleQuote": false,
+  "arrowParens": "always",
+  "bracketSpacing": true,
+  "importOrder": [
+    "^(react/(.*)$)|^(react$)",
+    "^next(/.*)?$",
+    "<BUILT_IN_MODULES>",
+    "<THIRD_PARTY_MODULES>",
+    "^@/env(.*)$",
+    "^@/types/(.*)$",
+    "",
+    "^@/*/(.*)$",
+    "",
+    "^[./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "importOrderBuiltinModulesToTop": true,
+  "importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy"],
+  "importOrderMergeDuplicateImports": true,
+  "importOrderCombineTypeAndValueImports": true,
+  "plugins": [
+    "@ianvs/prettier-plugin-sort-imports",
+    "prettier-plugin-tailwindcss"
+  ],
+  "tailwindStylesheet": "src/app/globals.css",
   "tailwindFunctions": ["cn", "cva"]
 }
