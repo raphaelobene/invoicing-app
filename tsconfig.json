@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"],
+      "next/types/*": ["./.next/types/*", "./.next/dev/types/*"]
     }
   },
   "include": [
