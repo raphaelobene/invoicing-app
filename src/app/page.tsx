@@ -4,7 +4,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { HOTKEYS } from "@/lib/constants"
 import { Page } from "@/lib/platform/server/safe-page"
-import { cn, ShortcutBadge } from "@/lib/utils"
+import { cn, createShortcutBadge } from "@/lib/utils"
 
 export default Page.create({
 	path: "/",
@@ -31,7 +31,7 @@ export default Page.create({
 			</div>
 			<div className="font-mono text-xs text-muted-foreground">
 				(Press{" "}
-				{ShortcutBadge(HOTKEYS.DARK_MODE, {
+				{createShortcutBadge(HOTKEYS.DARK_MODE, {
 					wrapper: (hotkey) => <Kbd key={hotkey}>{hotkey}</Kbd>,
 				})}{" "}
 				to toggle dark mode)

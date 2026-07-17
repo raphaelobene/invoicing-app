@@ -24,9 +24,12 @@ type ShortcutBadgeOptions = {
 	wrapper?: (formattedHotkey: string) => ReactNode
 }
 
-export function ShortcutBadge(hotkey: string, options?: ShortcutBadgeOptions) {
+export function createShortcutBadge(
+	hotkey: string,
+	options?: ShortcutBadgeOptions
+): ReactNode {
 	const formatted = formatForDisplay(hotkey)
 	const { wrapper } = options ?? {}
 
-	return wrapper ? [wrapper(formatted)] : formatted
+	return wrapper ? wrapper(formatted) : formatted
 }
