@@ -2,8 +2,9 @@ import Link from "next/link"
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
+import { HOTKEYS } from "@/lib/constants"
 import { Page } from "@/lib/platform/server/safe-page"
-import { cn } from "@/lib/utils"
+import { cn, ShortcutBadge } from "@/lib/utils"
 
 export default Page.create({
 	path: "/",
@@ -29,7 +30,11 @@ export default Page.create({
 				</div>
 			</div>
 			<div className="font-mono text-xs text-muted-foreground">
-				(Press <Kbd>D</Kbd> to toggle dark mode)
+				(Press{" "}
+				{ShortcutBadge(HOTKEYS.DARK_MODE, {
+					wrapper: (hotkey) => <Kbd key={hotkey}>{hotkey}</Kbd>,
+				})}{" "}
+				to toggle dark mode)
 			</div>
 		</div>
 	</div>

@@ -1,3 +1,5 @@
+import { ReactNode } from "react"
+import { formatForDisplay } from "@tanstack/react-hotkeys"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -16,4 +18,15 @@ export function isTypingTarget(target: EventTarget | null) {
 		target.tagName === "TEXTAREA" ||
 		target.tagName === "SELECT"
 	)
+}
+
+type ShortcutBadgeOptions = {
+	wrapper?: (formattedHotkey: string) => ReactNode
+}
+
+export function ShortcutBadge(hotkey: string, options?: ShortcutBadgeOptions) {
+	const formatted = formatForDisplay(hotkey)
+	const { wrapper } = options ?? {}
+
+	return wrapper ? [wrapper(formatted)] : formatted
 }
