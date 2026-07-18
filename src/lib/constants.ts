@@ -4,8 +4,9 @@ export const HOTKEYS = {
 } as const
 
 export const site = {
-	description: "",
-	name: "SaaS Marketplace",
+	description: "Send invoices and quotes, get paid.",
+	name: "Ledger",
 	ogImage: "/og.png",
 	url: "http://localhost:3000",
+	keywords: "",
 }
