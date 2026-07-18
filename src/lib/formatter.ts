@@ -9,6 +9,17 @@
  * 21+) and transparently falls back to a manual implementation elsewhere.
  */
 
+// `Intl.DurationFormat` and `Intl.DurationFormatStyle` are natively typed as
+// of TypeScript's "es2025.intl" lib (make sure your tsconfig's "lib" array
+// includes "ES2025.Intl" or "ESNext") — no shim needed there anymore.
+//
+// The native lib does NOT export `DurationInput` or a per-unit
+// `DurationUnitDisplay` type the way this file wants to use them, so those
+// stay as our own local types below instead of being merged into the global
+// `Intl` namespace. Keeping them out of `declare global` is what avoids the
+// "Duplicate identifier" / "Cannot redeclare" errors — this file no longer
+// declares anything TypeScript already knows about.
+
 /** Same shape as Intl.DurationFormat's `format()` argument. */
 export interface DurationInput {
 	years?: number
@@ -148,7 +159,7 @@ class ParseError extends Error {
 function compactSuffixTable(
 	locale: LocaleTag
 ): Array<{ suffix: string; multiplier: number }> {
-	const magnitudes = [1e15, 1e12, 1e9, 1e6, 1e3]
+	const magnitudes = [1e15, 1e12, 1e9, 1e6, 1e3] // largest first
 	const fmt = new Intl.NumberFormat(locale, {
 		notation: "compact",
 		maximumFractionDigits: 0,
@@ -192,7 +203,13 @@ function byteUnitTable(
 		.sort((a, b) => b.label.length - a.label.length)
 }
 
+// ============================================================================
+// Public API
+// ============================================================================
+
 export const Formatter = {
+	// ---- number -----------------------------------------------------------
+
 	number(value: number, opts: NumberOptions = {}): string {
 		const {
 			locale = "en-US",
@@ -215,6 +232,8 @@ export const Formatter = {
 		if (Number.isNaN(result)) throw new ParseError("parseNumber", value)
 		return result
 	},
+
+	// ---- currency -----------------------------------------------------------
 
 	currency(
 		value: number,
@@ -239,6 +258,8 @@ export const Formatter = {
 		return result
 	},
 
+	// ---- percent -----------------------------------------------------------
+
 	/** Pass the raw fraction: percent(0.4321) -> "43.21%" */
 	percent(value: number, opts: PercentOptions = {}): string {
 		const { locale = "en-US", decimals = 2 } = opts
@@ -257,6 +278,8 @@ export const Formatter = {
 		if (Number.isNaN(result)) throw new ParseError("parsePercent", value)
 		return result / 100
 	},
+
+	// ---- compact -----------------------------------------------------------
 
 	compact(value: number, opts: CompactOptions = {}): string {
 		const { locale = "en-US", decimals = 1, display = "short" } = opts
@@ -278,6 +301,8 @@ export const Formatter = {
 		}
 		return this.parseNumber(trimmed, { locale })
 	},
+
+	// ---- bytes -----------------------------------------------------------
 
 	bytes(value: number, opts: BytesOptions = {}): string {
 		const { locale = "en-US", decimals = 1, binary = false } = opts
@@ -303,10 +328,11 @@ export const Formatter = {
 		)
 		const scaled = value / Math.pow(base, exp)
 
+		// Intl has no binary (KiB/MiB) units, so binary mode always uses manual
+		// labels; decimal mode uses Intl's unit style (locale-aware "kB", "MB"…).
 		if (binary) {
 			return `${this.number(scaled, { locale, decimals })} ${binaryLabels[exp]}`
 		}
-
 		try {
 			return cached("Bytes", Intl.NumberFormat, locale, {
 				style: "unit",
@@ -325,7 +351,7 @@ export const Formatter = {
 		const trimmed = value.trim()
 
 		if (binary) {
-			const labels = ["TiB", "GiB", "MiB", "KiB", "B"]
+			const labels = ["TiB", "GiB", "MiB", "KiB", "B"] // longest/most-specific first
 			const match = labels.find((label) => trimmed.endsWith(label))
 			if (!match) throw new ParseError("parseBytes", value)
 			const exp = match === "B" ? 0 : 4 - labels.indexOf(match)
@@ -339,6 +365,8 @@ export const Formatter = {
 		const numPart = trimmed.slice(0, trimmed.length - match.label.length)
 		return this.parseNumber(numPart, { locale }) * match.multiplier
 	},
+
+	// ---- ordinal -----------------------------------------------------------
 
 	ordinal(value: number, opts: OrdinalOptions = {}): string {
 		const { locale = "en-US" } = opts
@@ -362,6 +390,8 @@ export const Formatter = {
 		return parseInt(match[0], 10)
 	},
 
+	// ---- relative time -----------------------------------------------------------
+
 	relativeTime(
 		value: number,
 		unit: RelativeTimeUnit = "day",
@@ -372,6 +402,8 @@ export const Formatter = {
 			numeric,
 		}).format(value, unit)
 	},
+
+	// ---- date -----------------------------------------------------------
 
 	date(value: Date | number | string, opts: DateOptions = {}): string {
 		const { locale = "en-US", dateStyle = "medium", timeStyle, timeZone } = opts
@@ -393,7 +425,7 @@ export const Formatter = {
 			dateStyle,
 			timeZone,
 		})
-
+		// formatRange is supported wherever DateTimeFormat is in modern engines
 		return (
 			fmt as Intl.DateTimeFormat & { formatRange: (a: Date, b: Date) => string }
 		).formatRange(new Date(start), new Date(end))
@@ -410,12 +442,16 @@ export const Formatter = {
 		return new Date(ms)
 	},
 
+	// ---- list -----------------------------------------------------------
+
 	list(items: string[], opts: ListOptions = {}): string {
 		const { locale = "en-US", type = "conjunction", style = "long" } = opts
 		return cached("List", Intl.ListFormat, locale, { type, style }).format(
 			items
 		)
 	},
+
+	// ---- generic unit -----------------------------------------------------------
 
 	/** Any Intl unit style unit, e.g. unit(12, 'kilometer') -> "12 km" */
 	unit(
@@ -455,6 +491,8 @@ export const Formatter = {
 		return this.parseNumber(withoutLabel, { locale })
 	},
 
+	// ---- plural selection -----------------------------------------------------------
+
 	/**
 	 * Picks the right word form for a count, e.g.:
 	 * plural(1, { one: 'item', other: 'items' }) -> "item"
@@ -472,6 +510,8 @@ export const Formatter = {
 		return forms[category] ?? forms.other ?? ""
 	},
 
+	// ---- duration -----------------------------------------------------------
+
 	duration(input: DurationInput, opts: DurationOptions = {}): string {
 		const { locale = "en-US", style = "short" } = opts
 
@@ -484,6 +524,8 @@ export const Formatter = {
 			}).format(input)
 		}
 
+		// Fallback for engines without Intl.DurationFormat: build from
+		// Intl.NumberFormat's unit style, which has broader support.
 		const order: Array<keyof DurationInput> = [
 			"years",
 			"months",
@@ -582,6 +624,11 @@ export const Formatter = {
 	},
 }
 
+// ============================================================================
+// Fluent wrapper: format(value).currency('USD') instead of
+// Formatter.currency(value, 'USD')
+// ============================================================================
+
 export interface FluentFormat {
 	number(opts?: NumberOptions): string
 	currency(currencyCode?: string, opts?: CurrencyOptions): string
@@ -591,7 +638,14 @@ export interface FluentFormat {
 	ordinal(opts?: OrdinalOptions): string
 	relativeTime(unit?: RelativeTimeUnit, opts?: RelativeTimeOptions): string
 	date(opts?: DateOptions): string
+	/** Treats the wrapped value as the range start; `end` is the other bound. */
+	dateRange(end: Date | number | string, opts?: DateOptions): string
 	unit(measurementUnit: MeasurementUnit, opts?: UnitOptions): string
+	/** Treats the wrapped value as the count used to pick a plural form. */
+	plural(
+		forms: Partial<Record<Intl.LDMLPluralRule, string>>,
+		opts?: PluralOptions
+	): string
 }
 
 export function format(
@@ -609,9 +663,40 @@ export function format(
 		relativeTime: (unit = defaultUnit ?? "day", opts) =>
 			Formatter.relativeTime(value as number, unit, opts),
 		date: (opts) => Formatter.date(value as Date | number | string, opts),
+		dateRange: (end, opts) =>
+			Formatter.dateRange(value as Date | number | string, end, opts),
 		unit: (measurementUnit, opts) =>
 			Formatter.unit(value as number, measurementUnit, opts),
+		plural: (forms, opts) => Formatter.plural(value as number, forms, opts),
 	}
 }
 
 export default format
+
+// ============================================================================
+// Fluent wrappers for shapes that don't fit `format()`'s single
+// number | Date | string value: list() needs an array, duration() needs a
+// DurationInput object. Rather than widening `format()`'s value type (which
+// would let you call, say, `.list()` on a plain number with no compile-time
+// warning), these get their own small, correctly-typed entry points.
+// ============================================================================
+
+export interface FluentList {
+	list(opts?: ListOptions): string
+}
+
+export function formatList(items: string[]): FluentList {
+	return {
+		list: (opts) => Formatter.list(items, opts),
+	}
+}
+
+export interface FluentDuration {
+	duration(opts?: DurationOptions): string
+}
+
+export function formatDuration(input: DurationInput): FluentDuration {
+	return {
+		duration: (opts) => Formatter.duration(input, opts),
+	}
+}
