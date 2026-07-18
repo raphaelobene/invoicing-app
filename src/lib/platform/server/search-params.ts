@@ -56,52 +56,6 @@ export type Decrement<N extends number> =
 	BuildTuple<N> extends [unknown, ...infer Rest] ? Rest["length"] : 0
 
 /**
- * Result of parsing URL search parameters against a Zod schema.
- *
- * This discriminated union represents the two possible outcomes from
- * parseSearchParams:
- *
- * - Success:
- *   - `success: true`
- *   - `searchParams`: the validated and parsed output typed as `z.output<S>`
- *   - `errors`: undefined
- *
- * - Failure:
- *   - `success: false`
- *   - `errors.global`: array of form-level error messages
- *   - `errors.parameters`: a map of parameter keys to an array of field-level error messages.
- *     The parameter keys include:
- *       - input object keys (the schema's expected properties),
- *       - output keys from the schema pipeline, and
- *       - intermediate pipeline stage keys (when using Zod pipes).
- *   - `searchParams`: undefined
- *
- * Generic type parameter S is the Zod schema used to validate the input. On success
- * the returned `searchParams` is typed as `z.output<S>`.
- *
- * Note: This type is internal and intended for ergonomic handling of validation
- * results in server components that parse Next.js App Router search params.
- */
-export type SearchParamsResult<O extends z.ZodRawShape> =
-	| {
-			success: false
-			errors: {
-				global: string[]
-				parameters: {
-					[
-						P in keyof z.core.$InferObjectOutput<O, Record<string, unknown>>
-					]?: string[]
-				}
-			}
-			searchParams: never
-	  }
-	| {
-			success: true
-			searchParams: z.core.$InferObjectOutput<O, Record<string, unknown>>
-			errors: never
-	  }
-
-/**
  * Check if a string value represents a truthy boolean.
  * @internal
  */
@@ -222,7 +176,11 @@ const processSearchParamsForSchema = (
 	params: Record<string, unknown>,
 	schema: z.ZodObject<z.ZodRawShape>
 ): Record<string, unknown> => {
-	const processed = params
+	// Clone before mutating. `params` is the same object reference across every
+	// call for a given request (Next.js resolves `searchParams` once and shares
+	// it), so mutating it in place corrupts data for any other schema that reads
+	// the same keys later in the same request tree.
+	const processed = { ...params }
 
 	try {
 		const shape = schema.shape as unknown as Record<
@@ -373,6 +331,10 @@ export const parseSearchParams = cache(
 		// Unwrap nested ZodPipes to find the ultimate input object schema
 		let current: z.ZodTypeAny = schema
 		// Structural access to the internal 'in' of ZodPipe without relying on private types
+		// WARNING: `_def.in` is a private Zod internal, not part of the public API.
+		// A Zod version bump could change or remove this shape and break this
+		// silently (wrong schema resolved) rather than with a compile error.
+		// Pin a regression test against this before upgrading Zod.
 		type PipeIn<T extends z.ZodTypeAny> = { _def: { in: T } }
 		while (current instanceof z.ZodPipe) {
 			current = (current as unknown as PipeIn<z.ZodTypeAny>)._def.in

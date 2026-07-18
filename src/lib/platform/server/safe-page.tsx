@@ -19,7 +19,7 @@ import {
 
 export type NextSearchParams = Record<string, string | string[] | undefined>
 
-type PathParams = Record<string, string>
+type PathParams = Record<string, string | string[] | undefined>
 
 export type SearchParamsError<S> = Extract<
 	SearchParamsResultForSchema<S>,
@@ -170,7 +170,7 @@ class PageClient<
 	HasValidationErrorFallback extends boolean = false,
 > {
 	private readonly path: Route
-	private readonly schema: Schema = undefined as Schema
+	private readonly schema: Schema
 	private readonly validationErrorFallback:
 		| ValidationErrorFallback<
 				Schema extends z.ZodTypeAny ? Schema : never,
@@ -179,9 +179,19 @@ class PageClient<
 		| undefined
 	private readonly name: Name
 
-	constructor(path: Route, name: KebabCase<"name", Name>) {
+	constructor(
+		path: Route,
+		name: KebabCase<"name", Name>,
+		schema?: Schema,
+		validationErrorFallback?: ValidationErrorFallback<
+			Schema extends z.ZodTypeAny ? Schema : never,
+			Route
+		>
+	) {
 		this.path = path
 		this.name = name as Name
+		this.schema = (schema ?? undefined) as Schema
+		this.validationErrorFallback = validationErrorFallback
 	}
 
 	/**
@@ -235,13 +245,19 @@ class PageClient<
 				: z.object(schema as z.ZodRawShape)
 		) as GetSchemaType<T>
 
-		;(this as unknown as { schema: typeof finalSchema }).schema = finalSchema
-		;(
-			this as unknown as {
-				validationErrorFallback: typeof validationErrorFallback
-			}
-		).validationErrorFallback = validationErrorFallback
-		return this as unknown as PageClient<Route, Name, GetSchemaType<T>, boolean>
+		// Return a new instance rather than mutating `this` - `this` is
+		// readonly by design, and mutating it through a cast would also mean a
+		// partially-built PageClient reused across two `.page()` calls could
+		// leak schema/fallback state between them.
+		return new PageClient<Route, Name, GetSchemaType<T>, boolean>(
+			this.path,
+			this.name as KebabCase<"name", Name>,
+			finalSchema as unknown as GetSchemaType<T>,
+			validationErrorFallback as ValidationErrorFallback<
+				GetSchemaType<T> extends z.ZodTypeAny ? GetSchemaType<T> : never,
+				Route
+			>
+		)
 	}
 
 	/**

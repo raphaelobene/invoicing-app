@@ -74,6 +74,31 @@ const createPinoLogger = () => {
 				req: pino.stdSerializers.req,
 				res: pino.stdSerializers.res,
 			},
+
+			// Redact common sensitive fields so they never end up in log storage,
+			// even if a call site accidentally logs a full object containing them
+			// (e.g. an env object, a user record, request headers/cookies).
+			// This is a safety net, not a substitute for not logging secrets in
+			// the first place - extend this list as new sensitive field names
+			// show up in the codebase.
+			redact: {
+				paths: [
+					"*.password",
+					"*.token",
+					"*.secret",
+					"*.apiKey",
+					"*.accessToken",
+					"*.refreshToken",
+					"*.authorization",
+					"*.cookie",
+					"*.*.password",
+					"*.*.token",
+					"*.*.secret",
+					"req.headers.authorization",
+					"req.headers.cookie",
+				],
+				censor: "[REDACTED]",
+			},
 		},
 		prettyStream
 	)
@@ -128,72 +153,39 @@ type Logger = ChildLogger & {
 }
 
 /**
+ * Wrap any pino logger instance (root or child) into our message-first
+ * `ChildLogger` shape. Shared by both the root `Logger` and `Logger.child()`
+ * so the six method wrappers aren't duplicated verbatim in two places.
+ */
+const wrapPinoInstance = (pinoInstance: pino.Logger): ChildLogger => ({
+	trace: (msg, obj) => pinoInstance.trace(obj ?? {}, msg),
+	debug: (msg, obj) => pinoInstance.debug(obj ?? {}, msg),
+	info: (msg, obj) => pinoInstance.info(obj ?? {}, msg),
+	warn: (msg, obj) => pinoInstance.warn(obj ?? {}, msg),
+	error: (msg, obj) => pinoInstance.error(obj ?? {}, msg),
+	fatal: (msg, obj) => pinoInstance.fatal(obj ?? {}, msg),
+})
+
+/**
  * Create and configure the server-side Pino logger instance
  */
 const createLogger = (): Logger => {
 	// Create the Pino logger instance
 	const pinoLoggerInstance = createPinoLogger()
 
-	// Create wrapper functions that put message first
 	return {
-		trace: <Scope extends string, Topic extends string>(
-			msg: string,
-			obj?: LogObject<Scope, Topic>
-		) => pinoLoggerInstance.trace(obj ?? {}, msg),
-		debug: <Scope extends string, Topic extends string>(
-			msg: string,
-			obj?: LogObject<Scope, Topic>
-		) => pinoLoggerInstance.debug(obj ?? {}, msg),
-		info: <Scope extends string, Topic extends string>(
-			msg: string,
-			obj?: LogObject<Scope, Topic>
-		) => pinoLoggerInstance.info(obj ?? {}, msg),
-		warn: <Scope extends string, Topic extends string>(
-			msg: string,
-			obj?: LogObject<Scope, Topic>
-		) => pinoLoggerInstance.warn(obj ?? {}, msg),
-		error: <Scope extends string, Topic extends string>(
-			msg: string,
-			obj?: LogObject<Scope, Topic>
-		) => pinoLoggerInstance.error(obj ?? {}, msg),
-		fatal: <Scope extends string, Topic extends string>(
-			msg: string,
-			obj?: LogObject<Scope, Topic>
-		) => pinoLoggerInstance.fatal(obj ?? {}, msg),
+		...wrapPinoInstance(pinoLoggerInstance),
 		child: <Scope extends string, Topic extends string>(
 			obj: LogObject<Scope, Topic>
 		) => {
-			const childLogger = pinoLoggerInstance.child(
-				Object.assign(obj, {
-					correlationId: `corr_${generateId()}`,
-				})
-			)
-			return {
-				trace: <ChildScope extends string, ChildTopic extends string>(
-					msg: string,
-					childObj?: LogObject<ChildScope, ChildTopic>
-				) => childLogger.trace(childObj ?? {}, msg),
-				debug: <ChildScope extends string, ChildTopic extends string>(
-					msg: string,
-					childObj?: LogObject<ChildScope, ChildTopic>
-				) => childLogger.debug(childObj ?? {}, msg),
-				info: <ChildScope extends string, ChildTopic extends string>(
-					msg: string,
-					childObj?: LogObject<ChildScope, ChildTopic>
-				) => childLogger.info(childObj ?? {}, msg),
-				warn: <ChildScope extends string, ChildTopic extends string>(
-					msg: string,
-					childObj?: LogObject<ChildScope, ChildTopic>
-				) => childLogger.warn(childObj ?? {}, msg),
-				error: <ChildScope extends string, ChildTopic extends string>(
-					msg: string,
-					childObj?: LogObject<ChildScope, ChildTopic>
-				) => childLogger.error(childObj ?? {}, msg),
-				fatal: <ChildScope extends string, ChildTopic extends string>(
-					msg: string,
-					childObj?: LogObject<ChildScope, ChildTopic>
-				) => childLogger.fatal(childObj ?? {}, msg),
-			}
+			// Copy rather than `Object.assign(obj, ...)` - the caller passed
+			// `obj` in and shouldn't see it mutated with a correlationId they
+			// never asked to store.
+			const childLogger = pinoLoggerInstance.child({
+				...obj,
+				correlationId: `corr_${generateId()}`,
+			})
+			return wrapPinoInstance(childLogger)
 		},
 	}
 }

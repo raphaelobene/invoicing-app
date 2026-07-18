@@ -218,6 +218,47 @@ type SearchParamsInput =
 	string[][] | Record<string, string> | string | URLSearchParams
 
 /**
+ * Values coming from a schema-typed navigation call (e.g. `z.input<Schema>`)
+ * can be numbers, booleans, or arrays - not just strings. `URLSearchParams`
+ * only accepts strings at runtime, so passing it a non-string value either
+ * throws or silently produces something wrong (e.g. `String(undefined)`).
+ * This normalizes any input shape into something safe to hand to
+ * `new URLSearchParams(...)`, dropping nullish values and stringifying
+ * everything else. Arrays become repeated keys, matching how Next.js/URLSearchParams
+ * represents multi-value params.
+ */
+const normalizeSearchParamsInput = (
+	params: unknown
+): string[][] | string | URLSearchParams => {
+	if (
+		typeof params === "string" ||
+		params instanceof URLSearchParams ||
+		Array.isArray(params)
+	) {
+		return params as string[][] | string | URLSearchParams
+	}
+
+	const entries: string[][] = []
+	for (const [key, value] of Object.entries(
+		params as Record<string, unknown>
+	)) {
+		if (value === undefined || value === null) {
+			continue
+		}
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item !== undefined && item !== null) {
+					entries.push([key, String(item)])
+				}
+			}
+		} else {
+			entries.push([key, String(value)])
+		}
+	}
+	return entries
+}
+
+/**
  * Merge new params into current params with array-concat semantics.
  */
 const mergeArrayParams = (
@@ -270,7 +311,7 @@ const useSearchParamsNavigation = (): SearchParamsNavigation<any> => {
 		params: SearchParamsInput,
 		mode: SearchParamsNavigationMode = "merge"
 	) => {
-		const newParams = new URLSearchParams(params)
+		const newParams = new URLSearchParams(normalizeSearchParamsInput(params))
 
 		if (mode === "replace") {
 			return `${pathname}?${newParams.toString()}`
@@ -442,21 +483,57 @@ export const usePageContext = <Page extends AnyPage>(
 				`\`usePageContext\` expected page '${expectedName}' but was used in page '${pageContext.name}'.`
 			)
 		}
-		return {
-			isValidationError: false as const,
-			path: pageContext.path,
-			name: pageContext.name,
-			searchParams: (
-				pageContext as InternalPageContextValue<
-					string,
-					string,
-					z.ZodTypeAny,
-					true
-				>
-			).searchParams as z.output<NonNullable<ExtractPageSchema<Page>>>,
-			validationErrors: undefined,
-			...navigation,
+
+		// A page's context stores its parsed data under one of two keys depending
+		// on whether `.searchParamsSchema()` was given a validation error fallback:
+		// - with a fallback: `searchParams` (already guaranteed valid - the
+		//   fallback context handles the failure case separately)
+		// - without a fallback: `searchParamsResult` (a success/failure union
+		//   that this hook must branch on itself, since there's no separate
+		//   fallback context rendered for it)
+		if ("searchParams" in pageContext) {
+			return {
+				isValidationError: false as const,
+				path: pageContext.path,
+				name: pageContext.name,
+				searchParams: pageContext.searchParams as z.output<
+					NonNullable<ExtractPageSchema<Page>>
+				>,
+				validationErrors: undefined,
+				...navigation,
+			}
 		}
+
+		if ("searchParamsResult" in pageContext) {
+			const result =
+				pageContext.searchParamsResult as SearchParamsResultForSchema<
+					NonNullable<ExtractPageSchema<Page>>
+				>
+			if (result.success) {
+				return {
+					isValidationError: false as const,
+					path: pageContext.path,
+					name: pageContext.name,
+					searchParams: result.searchParams,
+					validationErrors: undefined,
+					...navigation,
+				}
+			}
+			return {
+				isValidationError: true as const,
+				path: pageContext.path,
+				name: pageContext.name,
+				searchParams: undefined,
+				validationErrors: result.errors as SearchParamsError<
+					NonNullable<ExtractPageSchema<Page>>
+				>,
+				...navigation,
+			}
+		}
+
+		throw new Error(
+			"`usePageContext` requires a page defined with `.searchParamsSchema()`. This page has no search params schema, so use `usePage` with `unsafeSearchParams` instead."
+		)
 	}
 
 	if (fallbackContext !== undefined) {

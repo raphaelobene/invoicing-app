@@ -20,7 +20,7 @@ const DEFAULT_SERVER_ERROR_MESSAGE =
 /**
  * HTTP error codes used throughout the application for client and server errors
  */
-const errorErrorCodes = {
+const errorCodes = {
 	// 4xx Client Errors
 	BAD_REQUEST: 400,
 	UNAUTHORIZED: 401,
@@ -43,15 +43,15 @@ const errorErrorCodes = {
 /**
  * Branded type for error codes to ensure type safety
  */
-type ErrorCode = (typeof errorErrorCodes)[keyof typeof errorErrorCodes] & {
+type ErrorCode = (typeof errorCodes)[keyof typeof errorCodes] & {
 	_brand: "ErrorCode"
 }
 
 /**
  * Exported HTTP status codes for use in error handling and responses
  */
-export const ErrorCode = errorErrorCodes as Record<
-	keyof typeof errorErrorCodes,
+export const ErrorCode = errorCodes as Record<
+	keyof typeof errorCodes,
 	ErrorCode
 >
 
@@ -92,7 +92,7 @@ export class ServerError extends Error {
 			(typeof optionsOrErrorCode === "object"
 				? optionsOrErrorCode.errorCode
 				: optionsOrErrorCode) ?? (500 as ErrorCode)
-		this.code = Object.entries(errorErrorCodes).find(
+		this.code = Object.entries(errorCodes).find(
 			([_, value]) => value === this.errorCode
 		)?.[0]
 		this.context =
@@ -152,15 +152,29 @@ const createServerAction = <T extends string>(metadata: ActionMetadata<T>) =>
 		handleServerError: (e, utils) => {
 			const { clientInput, ctx } = utils
 
+			// `next-safe-action` types `ctx` as `unknown` at this point in the
+			// config because the middleware that injects `logger` (see `.use()`
+			// below) isn't known yet when `handleServerError` is defined. A cast
+			// is unavoidable here, but casting to a real interface - instead of
+			// `any` - keeps the expected shape documented and typo-checked
+			// wherever `actionLogger` is used below.
+			type ActionErrorContext = {
+				logger?: ReturnType<(typeof Logger)["child"]>
+			}
 			const actionLogger =
-				((ctx as unknown as any).logger as
-					ReturnType<(typeof Logger)["child"]> | undefined) ??
+				(ctx as ActionErrorContext).logger ??
 				Logger.child({ scope: "SERVER_ACTION", topic: metadata.name as string })
 
 			// Default to error logging and generic client message
 			let logMethod = actionLogger.error
 			let clientMessage = DEFAULT_SERVER_ERROR_MESSAGE
 			let serverMessage = "Caught an unknown server error!"
+			// NOTE: clientInput is logged wholesale here. The logger's `redact`
+			// config catches common field names (password, token, secret, ...),
+			// but action-specific sensitive fields with other names won't be
+			// caught automatically. If a given action's input can carry
+			// something sensitive under a non-standard key, scrub it before it
+			// reaches this handler or add that key to the logger's redact paths.
 			const data = {
 				errorType: e.constructor.name,
 				clientInput:

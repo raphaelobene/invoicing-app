@@ -90,6 +90,13 @@ type SubdomainLinkProps<
 	pathname?: Pathname extends RoutesFor<Subdomain>
 		? Pathname
 		: RoutesFor<Subdomain>
+	/**
+	 * The current request host (e.g. from `headers().get("host")` in a server
+	 * layout), used to resolve the correct href on the server render and for
+	 * clients without JS. Without this, the href resolves to "/" until the
+	 * browser hydrates and `window.location` becomes available.
+	 */
+	currentHost?: string
 } & (Pathname extends RoutesFor<Subdomain>
 		? keyof ParamsFor<Subdomain, Pathname> extends never
 			? { params?: undefined }
@@ -112,18 +119,26 @@ function getServerSnapshot() {
 
 function buildHref({
 	locationHref,
+	currentHost,
 	subdomain,
 	pathname,
 	params,
 }: {
 	locationHref: string | null
+	currentHost: string | undefined
 	subdomain: string | undefined
 	pathname: string | undefined
 	params: Record<string, unknown> | undefined
 }) {
-	if (!locationHref) return "/"
+	// Prefer the live browser location; fall back to a host passed down from
+	// the server (e.g. from `headers().get("host")` in a layout) so the first
+	// server-rendered paint - and any client without JS - resolves the real
+	// subdomain URL instead of always pointing at "/".
+	const resolvedHref =
+		locationHref ?? (currentHost ? `https://${currentHost}` : null)
+	if (!resolvedHref) return "/"
 
-	const { hostname, protocol, port } = new URL(locationHref)
+	const { hostname, protocol, port } = new URL(resolvedHref)
 	const parts = hostname.split(".")
 	const rootDomain = parts.length > 2 ? parts.slice(-2).join(".") : hostname
 	const portSegment = port ? `:${port}` : ""
@@ -131,12 +146,28 @@ function buildHref({
 	let resolvedPathname = pathname ?? "/"
 	if (params) {
 		for (const [key, value] of Object.entries(params)) {
-			resolvedPathname = resolvedPathname.replace(`[${key}]`, String(value))
+			// Encode so a param value containing "/", "?", "#", or spaces can't
+			// reshape the URL structure or get misread as extra path segments.
+			resolvedPathname = resolvedPathname.replace(
+				`[${key}]`,
+				encodeURIComponent(String(value))
+			)
 		}
 	}
 
+	// Subdomain accepts an arbitrary string (for subdomains not known at the
+	// type level), so it isn't validated by the type system. Restrict it at
+	// runtime to characters that are valid in a DNS label - this is what
+	// actually stops a bad value (containing "/", "@", another host, etc.)
+	// from producing a malformed or misleading URL.
+	const validSubdomainPattern = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i
 	if (!subdomain || subdomain === "root") {
 		return `${protocol}//${rootDomain}${portSegment}${resolvedPathname}`
+	}
+	if (!validSubdomainPattern.test(subdomain)) {
+		throw new Error(
+			`SubdomainLink received an invalid subdomain "${subdomain}". Subdomains must be a valid DNS label (letters, numbers, and hyphens, not starting or ending with a hyphen).`
+		)
 	}
 	return `${protocol}//${subdomain}.${rootDomain}${portSegment}${resolvedPathname}`
 }
@@ -165,6 +196,7 @@ export function SubdomainLink<
 	subdomain,
 	pathname,
 	params,
+	currentHost,
 	children,
 	prefetch,
 	...props
@@ -175,7 +207,13 @@ export function SubdomainLink<
 		getServerSnapshot
 	)
 
-	const computedHref = buildHref({ locationHref, subdomain, pathname, params })
+	const computedHref = buildHref({
+		locationHref,
+		currentHost,
+		subdomain,
+		pathname,
+		params,
+	})
 
 	return (
 		<Link
