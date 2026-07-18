@@ -108,6 +108,13 @@ export interface UnitOptions extends LocaleOption {
 
 export interface PluralOptions extends LocaleOption {
 	type?: "cardinal" | "ordinal"
+	/**
+	 * Include the formatted count alongside the selected word form, and say
+	 * where it goes. Omit (default) to get just the word form, as before.
+	 */
+	value?: "before" | "after"
+	/** Text between the value and the word form when `value` is set. Default: " ". */
+	separator?: string
 }
 
 const formatterCache = new Map<string, unknown>()
@@ -497,17 +504,34 @@ export const Formatter = {
 	 * Picks the right word form for a count, e.g.:
 	 * plural(1, { one: 'item', other: 'items' }) -> "item"
 	 * plural(3, { one: 'item', other: 'items' }) -> "items"
+	 *
+	 * Pass `value: "before"` or `value: "after"` to include the formatted
+	 * count alongside the word form:
+	 * plural(3, { one: 'item', other: 'items' }, { value: "before" }) -> "3 items"
+	 * plural(3, { one: 'item', other: 'items' }, { value: "after" }) -> "items 3"
 	 */
 	plural(
 		value: number,
 		forms: Partial<Record<Intl.LDMLPluralRule, string>>,
 		opts: PluralOptions = {}
 	): string {
-		const { locale = "en-US", type = "cardinal" } = opts
+		const {
+			locale = "en-US",
+			type = "cardinal",
+			value: valuePosition,
+			separator = " ",
+		} = opts
 		const category = cached("PluralRules", Intl.PluralRules, locale, {
 			type,
 		}).select(value)
-		return forms[category] ?? forms.other ?? ""
+		const text = forms[category] ?? forms.other ?? ""
+
+		if (!valuePosition) return text
+
+		const formattedValue = this.number(value, { locale })
+		return valuePosition === "before"
+			? `${formattedValue}${separator}${text}`
+			: `${text}${separator}${formattedValue}`
 	},
 
 	// ---- duration -----------------------------------------------------------
