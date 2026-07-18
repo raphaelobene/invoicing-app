@@ -9,45 +9,22 @@
  * 21+) and transparently falls back to a manual implementation elsewhere.
  */
 
-declare global {
-	namespace Intl {
-		type DurationFormatStyle = "long" | "short" | "narrow" | "digital"
-		type DurationUnitDisplay = "long" | "short" | "narrow"
-
-		interface DurationInput {
-			years?: number
-			months?: number
-			weeks?: number
-			days?: number
-			hours?: number
-			minutes?: number
-			seconds?: number
-			milliseconds?: number
-			microseconds?: number
-			nanoseconds?: number
-		}
-
-		interface DurationFormatOptions {
-			style?: DurationFormatStyle
-			years?: DurationUnitDisplay
-			months?: DurationUnitDisplay
-			weeks?: DurationUnitDisplay
-			days?: DurationUnitDisplay
-			hours?: DurationUnitDisplay
-			minutes?: DurationUnitDisplay
-			seconds?: DurationUnitDisplay
-			milliseconds?: DurationUnitDisplay
-			microseconds?: DurationUnitDisplay
-			nanoseconds?: DurationUnitDisplay
-		}
-
-		// eslint-disable-next-line @typescript-eslint/no-unnecessary-class
-		class DurationFormat {
-			constructor(locales?: string | string[], options?: DurationFormatOptions)
-			format(duration: DurationInput): string
-		}
-	}
+/** Same shape as Intl.DurationFormat's `format()` argument. */
+export interface DurationInput {
+	years?: number
+	months?: number
+	weeks?: number
+	days?: number
+	hours?: number
+	minutes?: number
+	seconds?: number
+	milliseconds?: number
+	microseconds?: number
+	nanoseconds?: number
 }
+
+/** Unit display width used by this library's manual (non-Intl.DurationFormat) fallback. */
+export type DurationUnitDisplay = "long" | "short" | "narrow"
 
 /** BCP 47 locale tag(s), e.g. 'en-US', 'de-DE', ['fr-FR', 'en'] */
 export type LocaleTag = string | string[]
@@ -89,14 +66,7 @@ export interface BytesOptions extends LocaleOption {
 export type OrdinalOptions = LocaleOption
 
 export type RelativeTimeUnit =
-	| "second"
-	| "minute"
-	| "hour"
-	| "day"
-	| "week"
-	| "month"
-	| "quarter"
-	| "year"
+	"second" | "minute" | "hour" | "day" | "week" | "month" | "quarter" | "year"
 
 export interface RelativeTimeOptions extends LocaleOption {
 	numeric?: "always" | "auto"
@@ -178,7 +148,7 @@ class ParseError extends Error {
 function compactSuffixTable(
 	locale: LocaleTag
 ): Array<{ suffix: string; multiplier: number }> {
-	const magnitudes = [1e15, 1e12, 1e9, 1e6, 1e3] // largest first
+	const magnitudes = [1e15, 1e12, 1e9, 1e6, 1e3]
 	const fmt = new Intl.NumberFormat(locale, {
 		notation: "compact",
 		maximumFractionDigits: 0,
@@ -222,13 +192,7 @@ function byteUnitTable(
 		.sort((a, b) => b.label.length - a.label.length)
 }
 
-// ============================================================================
-// Public API
-// ============================================================================
-
 export const Formatter = {
-	// ---- number -----------------------------------------------------------
-
 	number(value: number, opts: NumberOptions = {}): string {
 		const {
 			locale = "en-US",
@@ -251,8 +215,6 @@ export const Formatter = {
 		if (Number.isNaN(result)) throw new ParseError("parseNumber", value)
 		return result
 	},
-
-	// ---- currency -----------------------------------------------------------
 
 	currency(
 		value: number,
@@ -277,8 +239,6 @@ export const Formatter = {
 		return result
 	},
 
-	// ---- percent -----------------------------------------------------------
-
 	/** Pass the raw fraction: percent(0.4321) -> "43.21%" */
 	percent(value: number, opts: PercentOptions = {}): string {
 		const { locale = "en-US", decimals = 2 } = opts
@@ -297,8 +257,6 @@ export const Formatter = {
 		if (Number.isNaN(result)) throw new ParseError("parsePercent", value)
 		return result / 100
 	},
-
-	// ---- compact -----------------------------------------------------------
 
 	compact(value: number, opts: CompactOptions = {}): string {
 		const { locale = "en-US", decimals = 1, display = "short" } = opts
@@ -320,8 +278,6 @@ export const Formatter = {
 		}
 		return this.parseNumber(trimmed, { locale })
 	},
-
-	// ---- bytes -----------------------------------------------------------
 
 	bytes(value: number, opts: BytesOptions = {}): string {
 		const { locale = "en-US", decimals = 1, binary = false } = opts
@@ -347,11 +303,10 @@ export const Formatter = {
 		)
 		const scaled = value / Math.pow(base, exp)
 
-		// Intl has no binary (KiB/MiB) units, so binary mode always uses manual
-		// labels; decimal mode uses Intl's unit style (locale-aware "kB", "MB"…).
 		if (binary) {
 			return `${this.number(scaled, { locale, decimals })} ${binaryLabels[exp]}`
 		}
+
 		try {
 			return cached("Bytes", Intl.NumberFormat, locale, {
 				style: "unit",
@@ -370,7 +325,7 @@ export const Formatter = {
 		const trimmed = value.trim()
 
 		if (binary) {
-			const labels = ["TiB", "GiB", "MiB", "KiB", "B"] // longest/most-specific first
+			const labels = ["TiB", "GiB", "MiB", "KiB", "B"]
 			const match = labels.find((label) => trimmed.endsWith(label))
 			if (!match) throw new ParseError("parseBytes", value)
 			const exp = match === "B" ? 0 : 4 - labels.indexOf(match)
@@ -384,8 +339,6 @@ export const Formatter = {
 		const numPart = trimmed.slice(0, trimmed.length - match.label.length)
 		return this.parseNumber(numPart, { locale }) * match.multiplier
 	},
-
-	// ---- ordinal -----------------------------------------------------------
 
 	ordinal(value: number, opts: OrdinalOptions = {}): string {
 		const { locale = "en-US" } = opts
@@ -409,8 +362,6 @@ export const Formatter = {
 		return parseInt(match[0], 10)
 	},
 
-	// ---- relative time -----------------------------------------------------------
-
 	relativeTime(
 		value: number,
 		unit: RelativeTimeUnit = "day",
@@ -421,8 +372,6 @@ export const Formatter = {
 			numeric,
 		}).format(value, unit)
 	},
-
-	// ---- date -----------------------------------------------------------
 
 	date(value: Date | number | string, opts: DateOptions = {}): string {
 		const { locale = "en-US", dateStyle = "medium", timeStyle, timeZone } = opts
@@ -444,7 +393,7 @@ export const Formatter = {
 			dateStyle,
 			timeZone,
 		})
-		// formatRange is supported wherever DateTimeFormat is in modern engines
+
 		return (
 			fmt as Intl.DateTimeFormat & { formatRange: (a: Date, b: Date) => string }
 		).formatRange(new Date(start), new Date(end))
@@ -461,16 +410,12 @@ export const Formatter = {
 		return new Date(ms)
 	},
 
-	// ---- list -----------------------------------------------------------
-
 	list(items: string[], opts: ListOptions = {}): string {
 		const { locale = "en-US", type = "conjunction", style = "long" } = opts
 		return cached("List", Intl.ListFormat, locale, { type, style }).format(
 			items
 		)
 	},
-
-	// ---- generic unit -----------------------------------------------------------
 
 	/** Any Intl unit style unit, e.g. unit(12, 'kilometer') -> "12 km" */
 	unit(
@@ -510,8 +455,6 @@ export const Formatter = {
 		return this.parseNumber(withoutLabel, { locale })
 	},
 
-	// ---- plural selection -----------------------------------------------------------
-
 	/**
 	 * Picks the right word form for a count, e.g.:
 	 * plural(1, { one: 'item', other: 'items' }) -> "item"
@@ -529,9 +472,7 @@ export const Formatter = {
 		return forms[category] ?? forms.other ?? ""
 	},
 
-	// ---- duration -----------------------------------------------------------
-
-	duration(input: Intl.DurationInput, opts: DurationOptions = {}): string {
+	duration(input: DurationInput, opts: DurationOptions = {}): string {
 		const { locale = "en-US", style = "short" } = opts
 
 		if (
@@ -543,9 +484,7 @@ export const Formatter = {
 			}).format(input)
 		}
 
-		// Fallback for engines without Intl.DurationFormat: build from
-		// Intl.NumberFormat's unit style, which has broader support.
-		const order: Array<keyof Intl.DurationInput> = [
+		const order: Array<keyof DurationInput> = [
 			"years",
 			"months",
 			"weeks",
@@ -563,7 +502,7 @@ export const Formatter = {
 			minutes: "minute",
 			seconds: "second",
 		}
-		const unitDisplay: Intl.DurationUnitDisplay =
+		const unitDisplay: DurationUnitDisplay =
 			style === "digital" ? "short" : style
 
 		const parts = order
@@ -596,11 +535,11 @@ export const Formatter = {
 	 * externally-produced strings (e.g. "digital" HH:MM:SS style) are not
 	 * covered and should be parsed manually.
 	 */
-	parseDuration(value: string, opts: DurationOptions = {}): Intl.DurationInput {
+	parseDuration(value: string, opts: DurationOptions = {}): DurationInput {
 		const { locale = "en-US", style = "short" } = opts
-		const unitDisplay: Intl.DurationUnitDisplay =
+		const unitDisplay: DurationUnitDisplay =
 			style === "digital" ? "short" : style
-		const fields: Array<keyof Intl.DurationInput> = [
+		const fields: Array<keyof DurationInput> = [
 			"years",
 			"months",
 			"weeks",
@@ -619,7 +558,7 @@ export const Formatter = {
 			seconds: "second",
 		}
 
-		const result: Intl.DurationInput = {}
+		const result: DurationInput = {}
 		for (const field of fields) {
 			const parts = new Intl.NumberFormat(locale, {
 				style: "unit",
@@ -642,11 +581,6 @@ export const Formatter = {
 		return result
 	},
 }
-
-// ============================================================================
-// Fluent wrapper: format(value).currency('USD') instead of
-// Formatter.currency(value, 'USD')
-// ============================================================================
 
 export interface FluentFormat {
 	number(opts?: NumberOptions): string
