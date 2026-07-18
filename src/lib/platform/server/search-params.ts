@@ -88,10 +88,9 @@ export type SearchParamsResult<O extends z.ZodRawShape> =
 			errors: {
 				global: string[]
 				parameters: {
-					[P in keyof z.core.$InferObjectOutput<
-						O,
-						Record<string, unknown>
-					>]?: string[]
+					[
+						P in keyof z.core.$InferObjectOutput<O, Record<string, unknown>>
+					]?: string[]
 				}
 			}
 			searchParams: never
@@ -292,11 +291,10 @@ type StageKeys<S, D extends number = 5> = D extends 0
 				infer I extends z.ZodTypeAny,
 				infer O extends z.ZodTypeAny
 		  >
-		?
-				| StageKeys<I, Decrement<D>>
-				| StageKeys<O, Decrement<D>>
-				| (z.output<I> extends object ? keyof z.output<I> : never)
-				| (z.output<O> extends object ? keyof z.output<O> : never)
+		? | StageKeys<I, Decrement<D>>
+			| StageKeys<O, Decrement<D>>
+			| (z.output<I> extends object ? keyof z.output<I> : never)
+			| (z.output<O> extends object ? keyof z.output<O> : never)
 		: never
 type ParameterKeys<S> = Extract<
 	InputKeys<S> | OutputKeys<S> | StageKeys<S>,

@@ -16,5 +16,5 @@
  * type Pretty = Prettify<Raw>; // { a: string; b: number }
  */
 export type Prettify<T> = {
-  [Key in keyof T]: T[Key];
-} & {};
+	[Key in keyof T]: T[Key]
+} & {}

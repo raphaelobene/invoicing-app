@@ -31,4 +31,4 @@
  * It works by creating an impossible type intersection that triggers
  * TypeScript's type checker with a custom error message.
  */
-export type Never<TypeError extends string> = { _typeError: string & TypeError };
+export type Never<TypeError extends string> = { _typeError: string & TypeError }
