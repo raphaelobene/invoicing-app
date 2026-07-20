@@ -9,7 +9,7 @@ import {
 import { z } from "zod"
 
 import { Logger } from "@/lib/platform/server/logger"
-import { kebabCaseSchema, type KebabCase } from "@/lib/shared/utils/kebab-case"
+import { kebabCaseSchema, type KebabCase } from "@/lib/utils/shared/kebab-case"
 
 /**
  * Default error message returned to clients when an unexpected server error occurs

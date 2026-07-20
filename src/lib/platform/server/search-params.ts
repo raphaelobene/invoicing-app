@@ -23,7 +23,7 @@ import type { SearchParams } from "next/dist/server/request/search-params"
 import { z } from "zod"
 
 import { Logger } from "@/lib/platform/server/logger"
-import type { Prettify } from "@/lib/shared/utils/prettify"
+import type { Prettify } from "@/lib/utils/shared/prettify"
 
 /**
  * Shape of URL search params as provided by Next.js App Router.

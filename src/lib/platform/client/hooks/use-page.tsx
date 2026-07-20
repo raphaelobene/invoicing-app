@@ -15,10 +15,11 @@ import type {
 	ExtractPagePath,
 	ExtractPageSchema,
 	NextSearchParams,
+	RegisteredPageName,
 	SearchParamsError,
 } from "@/lib/platform/server/safe-page"
 import type { SearchParamsResultForSchema } from "@/lib/platform/server/search-params"
-import type { Prettify } from "@/lib/shared/utils/prettify"
+import type { Prettify } from "@/lib/utils/shared/prettify"
 
 /**
  * Mode for combining search params during navigation.
@@ -366,9 +367,7 @@ const useSearchParamsNavigation = (): SearchParamsNavigation<any> => {
  * const { searchParams } = usePage<typeof DemoPage>('demo');
  * ```
  */
-export const usePage = <Page extends AnyPage>(
-	expectedName?: ExtractPageName<Page>
-) => {
+export const usePage = <Name extends RegisteredPageName>(name?: Name) => {
 	const context = use(PageContext)
 	const navigation = useSearchParamsNavigation()
 	if (context === undefined) {
@@ -376,17 +375,22 @@ export const usePage = <Page extends AnyPage>(
 			"`usePage` must be used within a `PageContextProvider`. If you are in a validation error fallback, use `usePageFallback` or `usePageContext` instead."
 		)
 	}
-	if (expectedName !== undefined && context.name !== expectedName) {
+
+	if (context === undefined) {
+		throw new Error("`usePage` must be used within a `PageContextProvider`.")
+	}
+	if (context.name !== name) {
 		throw new Error(
-			`\`usePage\` expected page '${expectedName}' but was used in page '${context.name}'.`
+			`\`usePage\` expected page '${name}' but was used in page '${context.name}'.`
 		)
 	}
+
 	return { ...context, ...navigation } as unknown as Prettify<
 		PageContextValue<
-			ExtractPagePath<Page>,
-			ExtractPageName<Page>,
-			ExtractPageSchema<Page>,
-			ExtractPageHasFallback<Page>
+			ExtractPagePath<PageRegistry[Name]>,
+			Name,
+			ExtractPageSchema<PageRegistry[Name]>,
+			ExtractPageHasFallback<PageRegistry[Name]>
 		>
 	>
 }

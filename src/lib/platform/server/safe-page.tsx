@@ -8,8 +8,8 @@ import {
 	type PageContextValue,
 } from "@/lib/platform/client/hooks/use-page"
 import { Logger } from "@/lib/platform/server/logger"
-import type { KebabCase } from "@/lib/shared/utils/kebab-case"
-import { Prettify } from "@/lib/shared/utils/prettify"
+import type { KebabCase } from "@/lib/utils/shared/kebab-case"
+import { Prettify } from "@/lib/utils/shared/prettify"
 
 import {
 	parseSearchParams,
@@ -155,6 +155,19 @@ type GetSchemaType<T> =
 			: T extends z.ZodRawShape
 				? z.ZodObject<T>
 				: never
+
+/**
+ * Global registry mapping page names to their PageFn type. Each page file
+ * augments this via declaration merging when it's defined, so `usePage` can
+ * resolve a page's type from its name alone - no import needed in the
+ * component that calls the hook.
+ */
+declare global {
+	// eslint-disable-next-line @typescript-eslint/no-empty-interface
+	interface PageRegistry {}
+}
+
+export type RegisteredPageName = keyof PageRegistry
 
 /**
  * A builder class for creating type-safe Next.js pages.
