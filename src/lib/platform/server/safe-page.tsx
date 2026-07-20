@@ -313,7 +313,10 @@ class PageClient<
 				const schema = this.schema
 				const validationErrorFallback = this.validationErrorFallback
 				return (async () => {
-					const result = await parseSearchParams(props.searchParams, schema)
+					const [result, pathParams] = await Promise.all([
+						parseSearchParams(props.searchParams, schema),
+						props.params as PageProps<Route>["params"],
+					])
 					if (!result.success) {
 						logger.warn("Search params validation failed", {
 							errors: result.errors,
@@ -323,14 +326,14 @@ class PageClient<
 								value={{
 									path: this.path,
 									name: this.name as Name,
+									pathParams,
 									validationErrors: result.errors as SearchParamsError<Schema>,
 								}}
 							>
 								{await validationErrorFallback({
 									errors: result.errors as SearchParamsError<Schema>,
 									getUnsafeSearchParams: async () => props.searchParams,
-									getPathParams: async () =>
-										props.params as PageProps<Route>["params"],
+									getPathParams: async () => pathParams,
 									logger,
 								})}
 							</PageFallbackContextProvider>
@@ -348,6 +351,7 @@ class PageClient<
 								{
 									path: this.path,
 									name: this.name as Name,
+									pathParams,
 									searchParams: result.searchParams,
 								} as unknown as PageContextValue<Route, Name, Schema, true>
 							}
@@ -362,7 +366,10 @@ class PageClient<
 			if (this.schema) {
 				const schema = this.schema
 				return (async () => {
-					const result = await parseSearchParams(props.searchParams, schema)
+					const [result, pathParams] = await Promise.all([
+						parseSearchParams(props.searchParams, schema),
+						props.params as PageProps<Route>["params"],
+					])
 					if (result.success) {
 						logger.info("Search params validation successful", {
 							searchParams: result.searchParams,
@@ -381,6 +388,7 @@ class PageClient<
 								{
 									path: this.path,
 									name: this.name as Name,
+									pathParams,
 									searchParamsResult: result,
 								} as unknown as PageContextValue<Route, Name, Schema, false>
 							}
@@ -393,7 +401,10 @@ class PageClient<
 
 			// Case 3: No Schema -> unsafeSearchParams
 			return (async () => {
-				const rawSearchParams = await props.searchParams
+				const [rawSearchParams, pathParams] = await Promise.all([
+					props.searchParams,
+					props.params as PageProps<Route>["params"],
+				])
 				Object.assign(enhancedProps, {
 					getUnsafeSearchParams: async () => rawSearchParams,
 				})
@@ -402,6 +413,7 @@ class PageClient<
 						value={{
 							path: this.path,
 							name: this.name as Name,
+							pathParams,
 							unsafeSearchParams: rawSearchParams,
 						}}
 					>

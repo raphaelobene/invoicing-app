@@ -6,6 +6,7 @@ import {
 	usePathname,
 	useRouter,
 } from "next/navigation"
+import type { AppRoutes } from "next/types/routes"
 import type z from "zod"
 
 import type {
@@ -81,13 +82,15 @@ export type SearchParamsNavigation<
  * Internal context value type for page context (without navigation functions).
  */
 type InternalPageContextValue<
-	Path extends string = string,
+	Path extends AppRoutes = AppRoutes,
 	Name extends string = string,
 	Schema extends z.ZodTypeAny | undefined = undefined,
 	HasFallback extends boolean = false,
 > = {
 	path: Path
 	name: Name
+	/** Resolved dynamic route segment values (e.g. `slug` from `/blog/[slug]`) */
+	pathParams: Awaited<PageProps<Path>["params"]>
 } & (Schema extends undefined
 	? {
 			/** Raw unvalidated search params (no schema provided) */
@@ -107,12 +110,14 @@ type InternalPageContextValue<
  * Internal context value type for the search params validation fallback (without navigation functions).
  */
 type InternalPageFallbackContextValue<
-	Path extends string = string,
+	Path extends AppRoutes = AppRoutes,
 	Name extends string = string,
 	Schema extends z.ZodTypeAny = z.ZodTypeAny,
 > = {
 	path: Path
 	name: Name
+	/** Resolved dynamic route segment values (e.g. `slug` from `/blog/[slug]`) */
+	pathParams: Awaited<PageProps<Path>["params"]>
 	/** The validation errors from the failed search params parsing */
 	validationErrors: Prettify<SearchParamsError<Schema>>
 }
@@ -126,7 +131,7 @@ type InternalPageFallbackContextValue<
  * 3. No Schema: `unsafeSearchParams` is the raw search params
  */
 export type PageContextValue<
-	Path extends string = string,
+	Path extends AppRoutes = AppRoutes,
 	Name extends string = string,
 	Schema extends z.ZodTypeAny | undefined = undefined,
 	HasFallback extends boolean = false,
@@ -140,7 +145,7 @@ export type PageContextValue<
  * due to validation failure.
  */
 export type PageFallbackContextValue<
-	Path extends string = string,
+	Path extends AppRoutes = AppRoutes,
 	Name extends string = string,
 	Schema extends z.ZodTypeAny = z.ZodTypeAny,
 > = InternalPageFallbackContextValue<Path, Name, Schema> &
@@ -153,7 +158,7 @@ export type PageFallbackContextValue<
  * in the page context or the validation fallback context.
  */
 export type UsePageContextResult<
-	Path extends string = string,
+	Path extends AppRoutes = AppRoutes,
 	Name extends string = string,
 	Schema extends z.ZodTypeAny = z.ZodTypeAny,
 > = SearchParamsNavigation<Schema> &
@@ -163,6 +168,8 @@ export type UsePageContextResult<
 				isValidationError: false
 				path: Path
 				name: Name
+				/** Resolved dynamic route segment values (e.g. `slug` from `/blog/[slug]`) */
+				pathParams: Awaited<PageProps<Path>["params"]>
 				/** Validated and parsed search params */
 				searchParams: z.output<Schema>
 				validationErrors?: undefined
@@ -172,6 +179,8 @@ export type UsePageContextResult<
 				isValidationError: true
 				path: Path
 				name: Name
+				/** Resolved dynamic route segment values (e.g. `slug` from `/blog/[slug]`) */
+				pathParams: Awaited<PageProps<Path>["params"]>
 				searchParams?: undefined
 				/** The validation errors from the failed search params parsing */
 				validationErrors: Prettify<SearchParamsError<Schema>>
@@ -187,7 +196,7 @@ const PageFallbackContext = createContext<
 >(undefined)
 
 export const PageContextProvider = <
-	Path extends string,
+	Path extends AppRoutes,
 	Name extends string,
 	Schema extends z.ZodTypeAny | undefined = undefined,
 	HasFallback extends boolean = false,
@@ -200,7 +209,7 @@ export const PageContextProvider = <
 }) => <PageContext.Provider value={value}>{children}</PageContext.Provider>
 
 export const PageFallbackContextProvider = <
-	Path extends string,
+	Path extends AppRoutes,
 	Name extends string,
 	Schema extends z.ZodTypeAny = z.ZodTypeAny,
 >({
@@ -356,15 +365,14 @@ const useSearchParamsNavigation = (): SearchParamsNavigation<any> => {
 /**
  * Hook to access page context within a page component.
  *
- * @param expectedName - Optional page name for runtime validation. If provided, throws if the context's page name doesn't match.
+ * @param name - The registered page name (see `PageRegistry`), used to resolve the page's type and validate at runtime that this hook is used within the expected page.
  *
  * @example
  * ```tsx
- * // Without runtime validation
- * const { searchParams } = usePage<typeof DemoPage>();
+ * const { searchParams, pathParams } = usePage("blog-post")
  *
- * // With runtime validation
- * const { searchParams } = usePage<typeof DemoPage>('demo');
+ * // pathParams is typed from the page's route - e.g. for "/blog/[slug]",
+ * // pathParams.slug is a resolved string, no prop drilling or useParams() needed.
  * ```
  */
 export const usePage = <Name extends RegisteredPageName>(name?: Name) => {
@@ -500,6 +508,7 @@ export const usePageContext = <Page extends AnyPage>(
 				isValidationError: false as const,
 				path: pageContext.path,
 				name: pageContext.name,
+				pathParams: pageContext.pathParams,
 				searchParams: pageContext.searchParams as z.output<
 					NonNullable<ExtractPageSchema<Page>>
 				>,
@@ -518,6 +527,7 @@ export const usePageContext = <Page extends AnyPage>(
 					isValidationError: false as const,
 					path: pageContext.path,
 					name: pageContext.name,
+					pathParams: pageContext.pathParams,
 					searchParams: result.searchParams,
 					validationErrors: undefined,
 					...navigation,
@@ -527,6 +537,7 @@ export const usePageContext = <Page extends AnyPage>(
 				isValidationError: true as const,
 				path: pageContext.path,
 				name: pageContext.name,
+				pathParams: pageContext.pathParams,
 				searchParams: undefined,
 				validationErrors: result.errors as SearchParamsError<
 					NonNullable<ExtractPageSchema<Page>>
@@ -550,6 +561,7 @@ export const usePageContext = <Page extends AnyPage>(
 			isValidationError: true as const,
 			path: fallbackContext.path,
 			name: fallbackContext.name,
+			pathParams: fallbackContext.pathParams,
 			searchParams: undefined,
 			validationErrors: fallbackContext.validationErrors as SearchParamsError<
 				NonNullable<ExtractPageSchema<Page>>
