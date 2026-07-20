@@ -5,9 +5,10 @@ import { useHotkey } from "@tanstack/react-hotkeys"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 
 import { HOTKEYS } from "@/lib/constants"
-import { isTypingTarget } from "@/lib/utils"
+import { isTypingTarget } from "@/lib/utils/dx"
 
 import { Toaster } from "../ui/sonner"
+import { QueryProvider } from "./query-client"
 
 function ThemeProvider({
 	children,
@@ -21,9 +22,11 @@ function ThemeProvider({
 			disableTransitionOnChange
 			{...props}
 		>
-			<ThemeHotkey />
-			{children}
-			<Toaster position="top-right" visibleToasts={1} richColors />
+			<QueryProvider>
+				<ThemeHotkey />
+				{children}
+				<Toaster position="top-right" visibleToasts={1} richColors />
+			</QueryProvider>
 		</NextThemesProvider>
 	)
 }
