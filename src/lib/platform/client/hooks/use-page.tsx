@@ -384,9 +384,6 @@ export const usePage = <Name extends RegisteredPageName>(name?: Name) => {
 		)
 	}
 
-	if (context === undefined) {
-		throw new Error("`usePage` must be used within a `PageContextProvider`.")
-	}
 	if (context.name !== name) {
 		throw new Error(
 			`\`usePage\` expected page '${name}' but was used in page '${context.name}'.`

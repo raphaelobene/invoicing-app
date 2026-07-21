@@ -58,7 +58,7 @@ declare const PageFnBrand: unique symbol
  * Type metadata stored on PageFn for type extraction.
  */
 type PageFnMeta<
-	R extends string,
+	R extends AppRoutes,
 	N extends string,
 	S extends AcceptableSchema | undefined,
 	HasFallback extends boolean,
@@ -73,9 +73,14 @@ type PageFnMeta<
  * The base page function type that matches Next.js App Router's expected signature.
  * The type metadata (path, name, schema, hasFallback) is stored as a branded property
  * to allow type extraction while keeping the function signature compatible.
+ *
+ * R is constrained to AppRoutes (not just `string`) so that `ExtractPagePath<P>`
+ * below produces a type that itself satisfies AppRoutes - this is required
+ * for consumers like `PageProps<ExtractPagePath<P>>` (used in use-page.tsx to
+ * type `pathParams`) to type-check.
  */
 type PageFn<
-	R extends string,
+	R extends AppRoutes,
 	N extends string,
 	S extends AcceptableSchema | undefined,
 	HasFallback extends boolean = false,
@@ -87,7 +92,7 @@ type PageFn<
  * Extracts the page name type from a PageFn.
  */
 export type ExtractPageName<P> =
-	P extends PageFn<string, infer N, AcceptableSchema | undefined, boolean>
+	P extends PageFn<AppRoutes, infer N, AcceptableSchema | undefined, boolean>
 		? N
 		: never
 
@@ -95,21 +100,31 @@ export type ExtractPageName<P> =
  * Extracts the schema type from a PageFn.
  */
 export type ExtractPageSchema<P> =
-	P extends PageFn<string, string, infer S, boolean> ? S : never
+	P extends PageFn<AppRoutes, string, infer S, boolean> ? S : never
 
 /**
  * Extracts the hasFallback boolean from a PageFn.
  */
 export type ExtractPageHasFallback<P> =
-	P extends PageFn<string, string, AcceptableSchema | undefined, infer H>
+	P extends PageFn<AppRoutes, string, AcceptableSchema | undefined, infer H>
 		? H
 		: never
 
 /**
- * Extracts the path type from a PageFn.
+ * Extracts the path type from a PageFn. The `infer R extends AppRoutes`
+ * clause (rather than a bare `infer R`) is what lets the extracted type
+ * satisfy AppRoutes at the call site - without it, callers like
+ * `PageContextValue<ExtractPagePath<Page>, ...>` fail to type-check because
+ * TS can't prove the inferred R is an AppRoutes without the constraint being
+ * spelled out on the infer itself.
  */
 export type ExtractPagePath<P> =
-	P extends PageFn<infer R, string, AcceptableSchema | undefined, boolean>
+	P extends PageFn<
+		infer R extends AppRoutes,
+		string,
+		AcceptableSchema | undefined,
+		boolean
+	>
 		? R
 		: never
 
