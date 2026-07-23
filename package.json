@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio --config ./prisma.config.ts",
     "db:seed": "tsx prisma/seed.ts",
-    "auth:generate": "bun x auth@latest generate"
+    "auth:generate": "bun x auth@latest generate",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
