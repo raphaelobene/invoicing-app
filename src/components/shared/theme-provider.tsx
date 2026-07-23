@@ -5,6 +5,7 @@ import { useHotkey } from "@tanstack/react-hotkeys"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 
 import { HOTKEYS } from "@/lib/constants"
+import { OrgCurrencyProvider } from "@/lib/org-currency-context"
 import { isTypingTarget } from "@/lib/utils/dx"
 
 import { Toaster } from "../ui/sonner"
@@ -23,9 +24,11 @@ function ThemeProvider({
 			{...props}
 		>
 			<QueryProvider>
-				<ThemeHotkey />
-				{children}
-				<Toaster position="top-right" visibleToasts={1} richColors />
+				<OrgCurrencyProvider>
+					<ThemeHotkey />
+					{children}
+					<Toaster position="top-right" visibleToasts={1} richColors />
+				</OrgCurrencyProvider>
 			</QueryProvider>
 		</NextThemesProvider>
 	)

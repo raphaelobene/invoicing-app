@@ -9,6 +9,8 @@
  * 21+) and transparently falls back to a manual implementation elsewhere.
  */
 
+import { Decimal } from "@prisma/client/runtime/client"
+
 // `Intl.DurationFormat` and `Intl.DurationFormatStyle` are natively typed as
 // of TypeScript's "es2025.intl" lib (make sure your tsconfig's "lib" array
 // includes "ES2025.Intl" or "ESNext") — no shim needed there anymore.
@@ -673,7 +675,7 @@ export interface FluentFormat {
 }
 
 export function format(
-	value: number | Date | string,
+	value: number | Date | string | Decimal,
 	defaultUnit?: RelativeTimeUnit
 ): FluentFormat {
 	return {

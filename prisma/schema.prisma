@@ -13,30 +13,36 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+  id              String       @id
+  name            String
+  email           String
+  emailVerified   Boolean      @default(false)
+  image           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  sessions        Session[]
+  accounts        Account[]
+  members         Member[]
+  invitations     Invitation[] @relation("InvitedBy")
+  createdInvoices Invoice[]    @relation("InvoiceCreatedBy")
+  createdQuotes   Quote[]      @relation("QuoteCreatedBy")
+  createdReceipts Receipt[]    @relation("ReceiptCreatedBy")
 
   @@unique([email])
   @@map("user")
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String   @id
+  expiresAt            DateTime
+  token                String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  ipAddress            String?
+  userAgent            String?
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrganizationId String?
 
   @@unique([token])
   @@index([userId])
@@ -59,6 +65,7 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  @@unique([providerId, accountId])
   @@index([userId])
   @@map("account")
 }
@@ -73,4 +80,234 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model Organization {
+  id              String       @id
+  name            String
+  slug            String
+  logo            String?
+  createdAt       DateTime     @default(now())
+  metadata        String?
+  defaultCurrency String?      @default("USD")
+  invoicePrefix   String?      @default("INV")
+  quotePrefix     String?      @default("QUO")
+  nextInvoiceSeq  Int?         @default(1)
+  nextQuoteSeq    Int?         @default(1)
+  billingAddress  String?
+  taxId           String?
+  members         Member[]
+  invitations     Invitation[]
+  clients         Client[]
+  invoices        Invoice[]
+  quotes          Quote[]
+  receipts        Receipt[]
+
+  billingEmail String?
+
+  receiptPrefix  String? @default("RCT")
+  nextReceiptSeq Int?    @default(1)
+
+  @@unique([slug])
+  @@map("organization")
+}
+
+model Member {
+  id             String       @id
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("member")
+  createdAt      DateTime
+
+  @@index([organizationId, userId])
+  @@index([userId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String       @id
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String       @default("pending")
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  inviterId      String
+  inviter        User         @relation("InvitedBy", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitation")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+model Client {
+  id             String    @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  billingAddress String?
+  taxId          String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  invoices Invoice[]
+  quotes   Quote[]
+
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, name])
+  @@map("client")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  number        String
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime
+  dueDate       DateTime
+  currency      String
+  subtotal      Decimal       @db.Decimal(14, 2)
+  taxTotal      Decimal       @db.Decimal(14, 2)
+  discountTotal Decimal       @default(0) @db.Decimal(14, 2)
+  total         Decimal       @db.Decimal(14, 2)
+  amountPaid    Decimal       @default(0) @db.Decimal(14, 2)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdById    String
+  createdBy      User         @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  items    InvoiceItem[]
+  payments Payment[]
+  quote    Quote?
+  receipt  Receipt?
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, clientId])
+  @@index([organizationId, dueDate])
+  @@map("invoice")
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Decimal @db.Decimal(12, 3)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  sortOrder   Int
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_item")
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  amount    Decimal  @db.Decimal(14, 2)
+  paidAt    DateTime
+  method    String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("payment")
+}
+
+model Receipt {
+  id             String       @id @default(cuid())
+  number         String
+  issueDate      DateTime     @default(now())
+  amount         Decimal      @db.Decimal(14, 2)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoiceId      String       @unique
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdById    String
+  createdBy      User         @relation("ReceiptCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@map("receipt")
+}
+
+model Quote {
+  id                 String       @id @default(cuid())
+  number             String
+  status             QuoteStatus  @default(DRAFT)
+  issueDate          DateTime
+  expiryDate         DateTime
+  currency           String
+  subtotal           Decimal      @db.Decimal(14, 2)
+  taxTotal           Decimal      @db.Decimal(14, 2)
+  discountTotal      Decimal      @default(0) @db.Decimal(14, 2)
+  total              Decimal      @db.Decimal(14, 2)
+  notes              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId           String
+  client             Client       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdById        String
+  createdBy          User         @relation("QuoteCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  convertedInvoiceId String?      @unique
+  convertedInvoice   Invoice?     @relation(fields: [convertedInvoiceId], references: [id], onDelete: SetNull)
+  items              QuoteItem[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, clientId])
+  @@map("quote")
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Decimal @db.Decimal(12, 3)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  sortOrder   Int
+  quoteId     String
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@map("quote_item")
 }

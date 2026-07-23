@@ -9,8 +9,8 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuLabel,
 	DropdownMenuSeparator,
+	DropdownMenuShortcut,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { authClient } from "@/lib/auth-client"
@@ -34,11 +34,9 @@ function initials(name: string) {
 
 export function AppSidebar({
 	organizationName,
-	userName,
 	userEmail,
 }: {
 	organizationName: string
-	userName: string
 	userEmail: string
 }) {
 	const pathname = usePathname()
@@ -51,12 +49,12 @@ export function AppSidebar({
 	}
 
 	return (
-		<aside className="flex h-screen w-60 shrink-0 flex-col border-r bg-card">
+		<aside className="fixed left-0 flex h-screen w-62 shrink-0 flex-col border-r bg-card">
 			<div className="flex h-14 items-center border-b px-4">
 				<span className="truncate font-semibold">{organizationName}</span>
 			</div>
 
-			<nav className="flex-1 space-y-1 p-3">
+			<nav className="flex-1 space-y-1.5 p-3">
 				{NAV_ITEMS.map(({ href, label, icon }) => {
 					const isActive = pathname === href || pathname.startsWith(`${href}/`)
 					return (
@@ -64,46 +62,55 @@ export function AppSidebar({
 							key={href}
 							href={href}
 							className={cn(
-								"flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-								isActive
-									? "bg-accent text-accent-foreground"
-									: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+								"flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors duration-300 hover:bg-accent hover:text-accent-foreground",
+								{
+									"bg-accent text-accent-foreground": isActive,
+								}
 							)}
 						>
-							<Icon icon={icon} strokeWidth={2} aria-hidden="true" />
+							<Icon
+								icon={icon}
+								strokeWidth={2}
+								aria-hidden="true"
+								className="text-accent-foreground"
+							/>
 							{label}
 						</Link>
 					)
 				})}
 			</nav>
 
-			<div className="border-t p-3">
+			<div className="p-3">
 				<DropdownMenu>
-					<DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-accent">
-						<Avatar className="h-7 w-7">
-							<AvatarFallback>{initials(userName)}</AvatarFallback>
+					<DropdownMenuTrigger>
+						<Avatar className="size-7">
+							<AvatarFallback>{initials(userEmail)}</AvatarFallback>
 						</Avatar>
-						<span className="truncate">{userName}</span>
+						<span className="truncate">{userEmail}</span>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="start" className="w-56">
-						<DropdownMenuLabel className="truncate font-normal text-muted-foreground">
-							{userEmail}
-						</DropdownMenuLabel>
+						<DropdownMenuItem>My profile</DropdownMenuItem>
+						<DropdownMenuItem>Appearance</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem asChild>
-							<Link href="/settings/organization">
-								<Icon
-									icon={Icons.settings}
-									strokeWidth={2}
-									aria-hidden="true"
-								/>
-								Organization settings
+							<Link href="/" target="_blank">
+								Homepage
+								<DropdownMenuShortcut>
+									<Icon
+										icon={Icons.arrowUpRight}
+										strokeWidth={2}
+										aria-hidden="true"
+										className="size-3"
+									/>
+								</DropdownMenuShortcut>
 							</Link>
+						</DropdownMenuItem>
+						<DropdownMenuItem asChild>
+							<Link href="/settings/organization">Organization settings</Link>
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem onSelect={handleSignOut}>
-							<Icon icon={Icons.logout} strokeWidth={2} aria-hidden="true" />
-							Sign out
+							Log out
 						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>

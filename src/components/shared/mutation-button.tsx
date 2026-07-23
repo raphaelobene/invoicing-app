@@ -15,8 +15,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils/dx"
+import { Button } from "@/components/ui/button"
 
 export type MutationButtonProps<TData = unknown, TVariables = void> = Omit<
 	ComponentProps<typeof Button>,
@@ -24,7 +23,8 @@ export type MutationButtonProps<TData = unknown, TVariables = void> = Omit<
 > & {
 	mutation: UseMutationResult<TData, Error, TVariables>
 	mutationArgs?: TVariables
-	areYouSureDescription?: React.ReactNode
+	title: string
+	description?: React.ReactNode
 	actionButtonText?: string
 	actionButtonClassname?: string
 	requireAreYouSure?: boolean
@@ -36,12 +36,11 @@ export function MutationButton<TData = unknown, TVariables = void>({
 	mutationArgs,
 	actionButtonText = "Yes",
 	actionButtonClassname,
-	areYouSureDescription = (
+	title,
+	description = (
 		<>
-			<span>Are you sure you want to delete?</span>
-			<span className="font-semibold text-destructive">
-				This action cannot be undone.
-			</span>
+			<span>Are you sure you want to delete?</span>{" "}
+			<span className="text-destructive/70">This action cannot be undone.</span>
 		</>
 	),
 	requireAreYouSure = false,
@@ -62,46 +61,39 @@ export function MutationButton<TData = unknown, TVariables = void>({
 			<AlertDialog
 				open={open}
 				onOpenChange={(next) => {
-					// Ignore attempts to close (Cancel, overlay, Esc) while the
-					// mutation is in flight so the dialog can't be dismissed
-					// out from under a pending request.
 					if (!isLoading) setOpen(next)
 				}}
 			>
 				<AlertDialogTrigger asChild>
-					<Button type="button" {...props} />
+					<Button
+						type="button"
+						data-size={props.size}
+						data-variant={props.variant}
+						{...props}
+					/>
 				</AlertDialogTrigger>
 				<AlertDialogContent className="sm:max-w-sm">
 					<AlertDialogHeader>
-						<AlertDialogTitle>{actionButtonText}</AlertDialogTitle>
-						<AlertDialogDescription>
-							{areYouSureDescription}
-						</AlertDialogDescription>
+						<AlertDialogTitle>{title}</AlertDialogTitle>
+						<AlertDialogDescription>{description}</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel
 							disabled={isLoading}
-							className={cn(
-								buttonVariants({ variant: "ghost", size: "sm" }),
-								"border bg-muted/40 not-disabled:hover:text-foreground"
-							)}
+							variant="ghost"
+							size={props.size}
 						>
 							Cancel
 						</AlertDialogCancel>
 						<AlertDialogAction
 							disabled={isLoading}
 							onClick={(e) => {
-								// AlertDialogAction closes the dialog on click by
-								// default. Block that so it stays open (and
-								// showing the loading state) until the mutation
-								// actually resolves.
 								e.preventDefault()
 								performAction(() => setOpen(false))
 							}}
-							className={cn(
-								buttonVariants({ variant: "secondary", size: "sm" }),
-								actionButtonClassname
-							)}
+							variant={props.variant}
+							size={props.size}
+							className={actionButtonClassname}
 						>
 							<LoadingSwap isLoading={isLoading}>
 								{actionButtonText}
@@ -118,6 +110,8 @@ export function MutationButton<TData = unknown, TVariables = void>({
 			type="button"
 			{...props}
 			disabled={props.disabled ?? isLoading}
+			data-size={props.size}
+			data-variant={props.variant}
 			onClick={() => performAction()}
 		>
 			<LoadingSwap isLoading={isLoading}>{props.children}</LoadingSwap>

@@ -7,7 +7,12 @@ const nextConfig: NextConfig = {
 	typedRoutes: true,
 	reactCompiler: true,
 	logging: { incomingRequests: false },
-	serverExternalPackages: ["pino"],
+	serverExternalPackages: [
+		"pino",
+		"@prisma/client",
+		"@prisma/adapter-pg",
+		"@react-pdf/renderer",
+	],
 }
 
 export default nextConfig

@@ -5,6 +5,7 @@ import {
 	ColumnDef,
 	flexRender,
 	getCoreRowModel,
+	getFilteredRowModel,
 	getPaginationRowModel,
 	getSortedRowModel,
 	OnChangeFn,
@@ -64,7 +65,7 @@ export function DataTable<TData, TValue>({
 
 	const [pagination, setPagination] = React.useState<PaginationState>({
 		pageIndex: 0,
-		pageSize: 2,
+		pageSize: 10,
 	})
 
 	const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
@@ -79,6 +80,7 @@ export function DataTable<TData, TValue>({
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
 		getSortedRowModel: getSortedRowModel(),
+		getFilteredRowModel: getFilteredRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 		onSortingChange: setSorting,
 		onPaginationChange: handlePaginationChange,
@@ -209,7 +211,7 @@ export function DataTable<TData, TValue>({
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									{[2, 4, 6, 8, 10].map((pageSize) => (
+									{[10, 20, 30, 40, 50].map((pageSize) => (
 										<SelectItem key={pageSize} value={String(pageSize)}>
 											{pageSize}
 										</SelectItem>

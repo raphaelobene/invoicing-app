@@ -323,7 +323,7 @@ function renderCombobox<
 		label,
 		labelDescription,
 		options = [] as TOption[],
-		orientation = "horizontal",
+		orientation,
 		name,
 		placeholder = "Search...",
 		disabled,

@@ -1,6 +1,8 @@
 export const HOTKEYS = {
 	DARK_MODE: "D",
-	FOCUS_INPUT: "Mod+K",
+	OPEN_COMMAND_PALETTE: "Mod+K",
+	NEW_INVOICE: "Mod+Shift+I",
+	NEW_QUOTE: "Mod+Shift+Q",
 } as const
 
 export const site = {

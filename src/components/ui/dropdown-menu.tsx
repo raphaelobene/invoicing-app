@@ -22,11 +22,16 @@ function DropdownMenuPortal({
 }
 
 function DropdownMenuTrigger({
+	className,
 	...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
 	return (
 		<DropdownMenuPrimitive.Trigger
 			data-slot="dropdown-menu-trigger"
+			className={cn(
+				"flex w-full items-center gap-2.5 rounded-xl px-1.5 py-1 text-left text-sm font-medium hover:bg-accent focus:outline-0",
+				className
+			)}
 			{...props}
 		/>
 	)
@@ -77,12 +82,22 @@ function DropdownMenuItem({
 			data-inset={inset}
 			data-variant={variant}
 			className={cn(
-				"group/dropdown-menu-item relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
+				"group/dropdown-menu-item relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
 				className
 			)}
 			{...props}
 		/>
 	)
+}
+
+type DropdownMenuCheckboxItemProps = Omit<
+	React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>,
+	"checked"
+> & {
+	inset?: boolean
+	checked?: React.ComponentProps<
+		typeof DropdownMenuPrimitive.CheckboxItem
+	>["checked"]
 }
 
 function DropdownMenuCheckboxItem({
@@ -91,9 +106,7 @@ function DropdownMenuCheckboxItem({
 	checked,
 	inset,
 	...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem> & {
-	inset?: boolean
-}) {
+}: DropdownMenuCheckboxItemProps) {
 	return (
 		<DropdownMenuPrimitive.CheckboxItem
 			data-slot="dropdown-menu-checkbox-item"
@@ -102,7 +115,7 @@ function DropdownMenuCheckboxItem({
 				"relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 				className
 			)}
-			checked={checked}
+			{...(checked !== undefined ? { checked } : {})}
 			{...props}
 		>
 			<span
@@ -251,7 +264,7 @@ function DropdownMenuSubContent({
 		<DropdownMenuPrimitive.SubContent
 			data-slot="dropdown-menu-sub-content"
 			className={cn(
-				"z-50 min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+				"z-50 min-w-24 origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
 				className
 			)}
 			{...props}

@@ -13,7 +13,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Formatter } from "@/lib/utils/formatter"
+import { formatMoney } from "@/lib/currency"
 
 export interface LineItemDraft {
 	description: string
@@ -74,7 +74,7 @@ export function LineItemsEditor({
 	const addItem = () => onChange([...items, { ...EMPTY_ITEM }])
 
 	const { subtotal, tax, total } = previewTotals(items, discountTotal)
-	const money = (value: number) => Formatter.currency(value, currency || "USD")
+	const money = (value: number) => formatMoney(value, currency)
 
 	return (
 		<div className="rounded-lg border">
@@ -147,8 +147,8 @@ export function LineItemsEditor({
 							<TableCell>
 								<Button
 									type="button"
-									variant="ghost"
-									size="icon"
+									variant="destructive"
+									size="icon-xs"
 									onClick={() => removeItem(index)}
 									disabled={items.length === 1}
 								>
@@ -165,18 +165,13 @@ export function LineItemsEditor({
 				</TableBody>
 			</Table>
 
-			<div className="flex items-center justify-between border-t p-3">
-				<Button type="button" variant="ghost" size="sm" onClick={addItem}>
-					<HugeiconsIcon
-						icon={Plus}
-						strokeWidth={2}
-						aria-hidden="true"
-						data-slot="plus-icon"
-					/>
-					Add line
+			<div className="flex justify-between border-t p-3">
+				<Button type="button" variant="secondary" size="sm" onClick={addItem}>
+					<HugeiconsIcon icon={Plus} strokeWidth={2} aria-hidden="true" />
+					Add item
 				</Button>
 
-				<div className="w-64 space-y-1.5 text-sm">
+				<div className="w-72 space-y-1.5 text-sm">
 					<div className="flex justify-between text-muted-foreground">
 						<span>Subtotal</span>
 						<span className="font-mono tabular-nums">{money(subtotal)}</span>
